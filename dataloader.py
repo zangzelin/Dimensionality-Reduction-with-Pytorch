@@ -3,23 +3,29 @@ import torch
 from sklearn import manifold, datasets
 from sklearn.datasets import fetch_openml
 import numpy as np
+import ssl
 
+ssl._create_default_https_context = ssl._create_unverified_context
 
-def GetData(data_name, device, batch_size=128):
-    if data_name == 'mnist':
+def GetData(args, device, batch_size=128):
+    if args.data_name == 'mnist':
         X, y = fetch_openml('mnist_784', data_home='~/scikit_learn_data',
                version=1, return_X_y=True)
         X = X/255
         y = y.astype(np.int32)
-        data_train, data_test = X[:20000,:], X[20000:40000,:]
-        label_train, label_test = y[:20000], y[20000:40000]
+        n1 = args.data_trai_n
+        n2 = args.data_trai_n + args.data_test_n
+        data_train, data_test = X[:n1,:], X[n1:n2,:]
+        label_train, label_test = y[:n1], y[n1:n2]
 
-    if data_name == 'digits':
+    if args.data_name == 'digits':
         digitsr = datasets.load_digits(n_class=6)
         data = digitsr.data/255 * 2 - 1
         label = digitsr.target
-        data_train, data_test = data, data
-        label_train, label_test = label, label
+        n1 = args.data_trai_n
+        n2 = args.data_trai_n + args.data_test_n
+        data_train, data_test = data[:n1,:], data[n1:n2,:]
+        label_train, label_test = label[:n1], label[n1:n2]
     
     data_train = torch.tensor(data_train, device=device)
     data_test = torch.tensor(data_test, device=device)
