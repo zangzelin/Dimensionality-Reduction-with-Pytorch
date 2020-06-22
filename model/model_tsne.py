@@ -11,7 +11,7 @@ import numpy as np
 
 
 class TSNE(nn.Module):
-    def __init__(self, data, device, args , n_dim=2,):
+    def __init__(self, data, device, args, n_dim=2,):
         self.decive = device
         self.n_points = data.shape[0]
         self.n_dim = n_dim
@@ -20,9 +20,14 @@ class TSNE(nn.Module):
         self.perplexity = args.perplexity
 
         self.pij = self.CalPij(self.data).float().to(self.decive)
+        # input(self.pij)
+        from sklearn.decomposition import PCA
+        clf = PCA(n_components=2)
+        clf.fit(data.detach().cpu().numpy())
+        e = clf.transform(data.detach().cpu().numpy())
         # self.pij = self.x2p_torch(self.data).to(self.decive)
         self.pij[self.pij < 1e-16] = 1e-16
-        self.output = torch.nn.Parameter(torch.randn(self.n_points, n_dim))
+        self.output = torch.nn.Parameter(torch.tensor(e.astype(np.float32)))
 
     def Distance_squared(self, data1, data2, ):
         x = data1
@@ -43,7 +48,7 @@ class TSNE(nn.Module):
         dis_squared = pairwise_distances(
             X.detach().cpu().numpy(),  metric='euclidean', squared=True)
 
-        pij = manifold.t_sne._joint_probabilities(
+        pij = manifold._t_sne._joint_probabilities(
             dis_squared, perplexity, False)
         return torch.tensor(squareform(pij))
 

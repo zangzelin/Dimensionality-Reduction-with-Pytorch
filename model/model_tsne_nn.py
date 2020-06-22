@@ -12,19 +12,20 @@ import numpy as np
 
 class TSNE_NN(nn.Module):
     def __init__(self, data, device, args, n_dim=2,):
-        self.decive = device
+        self.device = device
         self.n_points = data.shape[0]
         self.n_dim = n_dim
         super(TSNE_NN, self).__init__()
         self.data = torch.tensor(data)
         self.perplexity = args.perplexity
 
-        self.pij = self.CalPij(self.data).float().to(self.decive)
-        # self.pij = self.x2p_torch(self.data).to(self.decive)
+        self.pij = self.CalPij(self.data).float().to(self.device)
+        # input(self.pij)
+        # self.pij = self.x2p_torch(self.data).to(self.device)
         self.pij[self.pij < 1e-16] = 1e-16
         self.r = 0
         # self.output = torch.nn.Parameter(torch.randn(self.n_points, n_dim))
-        self.NetworkStructure = [64, 1000, 2]
+        self.NetworkStructure = [64, 5000, 2]
         self.network = nn.ModuleList()
         for i in range(len(self.NetworkStructure)-1):
             self.network.append(
@@ -33,12 +34,12 @@ class TSNE_NN(nn.Module):
             )
             if i != len(self.NetworkStructure)-2:
                 self.network.append(
-                    nn.LeakyReLU(0.1)
+                    nn.Sigmoid()
                 )
-                # self.network.append(
-                #     nn.Dropout(0.1)
-                # )
-
+        self.r_pl = 1
+        self.r_kl = 1
+        self.k = args.perplexity
+        self.near_input = self.kNNGraphNear(self.dis)
         # input(self.network)
 
     def Distance_squared(self, data1, data2, ):
@@ -65,8 +66,8 @@ class TSNE_NN(nn.Module):
 
         dis_squared = pairwise_distances(
             X.detach().cpu().numpy(),  metric='euclidean', squared=True)
-
-        pij = manifold.t_sne._joint_probabilities(
+        self.dis = torch.tensor(dis_squared.astype(np.float32))
+        pij = manifold._t_sne._joint_probabilities(
             dis_squared, perplexity, False)
         return torch.tensor(squareform(pij))
 
@@ -83,19 +84,43 @@ class TSNE_NN(nn.Module):
 
         return out.abs().mean()
 
-    def PL(self, weigh_list):
-        i = 0
-        for weight in weigh_list:
-            if i == 0:
-                loss = self.CossimiSlow(weight)
-            else:
-                loss += self.CossimiSlow(weight)
-            i += 1
-        return loss
+    def KLLoss(self, dis):
+        qij_top = 1/(1+dis)
+        sum_m = (
+            qij_top.sum() -
+            qij_top[torch.eye(dis.shape[0]) == 1].sum()
+        )
+        qij = qij_top / sum_m
+        qij = torch.max(qij, torch.tensor([1e-36], device=self.device))
+        pij = self.pij
 
-    def forward(self, sample_index_i, sample_index_j):
+        loss_kld = pij * (torch.log(pij) - torch.log(qij))
 
-        input_1 = self.data.float()
+        return loss_kld.sum()
+
+    def kNNGraphNear(self, dis):
+
+        k = self.k
+
+        kNN_mask = torch.zeros(dis.shape, device=self.device)
+        s_, indices = torch.sort(dis, dim=1)
+        self.indices = indices
+        indices = indices[:, :k+1]
+        for i in range(kNN_mask.size(0)):
+            kNN_mask[i, :][indices[i]] = 1
+        kNN_mask[torch.eye(kNN_mask.shape[0], dtype=bool)] = 0
+
+        return kNN_mask
+
+    def PLLoss(self, dis):
+        D2_2 = (dis)[self.near_input == False]
+        Error2 = D2_2
+        Error2[Error2 > 100] = 100
+        loss2_2 = torch.norm(Error2) / \
+            torch.sum(self.near_input == False)
+        return -10000*loss2_2
+
+    def Loss(self, input_1):
 
         weigh_list = []
         input_c_1 = input_1
@@ -108,21 +133,16 @@ class TSNE_NN(nn.Module):
                 pass
 
         dis = self.Distance_squared(output_c_1, output_c_1)
-        qij_top = 1/(1+dis)
-        sum_m = (
-            qij_top.sum() -
-            qij_top[torch.eye(dis.shape[0]) == 1].sum()
-        )
-        qij = qij_top / sum_m
-        qij = torch.max(qij, torch.tensor([1e-36], device=self.decive))
-        pij = self.pij
+        KL_loss = self.KLLoss(dis)
+        PL_loss = self.PLLoss(dis)
+        print(KL_loss.item(), PL_loss.item())
+        return self.r_pl*PL_loss + self.r_kl*KL_loss
 
-        loss_kld = pij * (torch.log(pij) - torch.log(qij))
-        loss_pl = self.PL(weigh_list)
-        # print('loss', loss_kld.sum(), loss_pl*self.r)
-        # input()
+    def forward(self, sample_index_i, sample_index_j):
 
-        return loss_kld.sum() + loss_pl*self.r
+        input_1 = self.data.float()
+
+        return self.Loss(input_1)  # + loss_pl*self.r
 
     def __call__(self, *args):
         return self.forward(*args)

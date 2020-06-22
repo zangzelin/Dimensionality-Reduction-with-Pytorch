@@ -7,7 +7,7 @@ import ssl
 
 ssl._create_default_https_context = ssl._create_unverified_context
 
-def GetData(args, device, batch_size=128):
+def GetData(args, device, batch_size=128, pca=None):
     if args.data_name == 'mnist':
         X, y = fetch_openml('mnist_784', data_home='~/scikit_learn_data',
                version=1, return_X_y=True)
@@ -17,6 +17,13 @@ def GetData(args, device, batch_size=128):
         n2 = args.data_trai_n + args.data_test_n
         data_train, data_test = X[:n1,:], X[n1:n2,:]
         label_train, label_test = y[:n1], y[n1:n2]
+
+        if pca is not None:
+            from sklearn.decomposition import PCA
+            clf = PCA(n_components=64)
+            clf.fit(data_train)
+            data_train = clf.transform(data_train)
+            data_test = clf.transform(data_test)
 
     if args.data_name == 'digits':
         digitsr = datasets.load_digits(n_class=6)

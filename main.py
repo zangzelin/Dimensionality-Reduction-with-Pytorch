@@ -14,6 +14,7 @@ from sklearn.metrics.pairwise import pairwise_distances
 import dataloader
 import model.model_tsne_nn as model_tsne_nn
 import model.model_tsne as model_tsne
+import tool
 
 matplotlib.use('Agg')
 
@@ -51,6 +52,7 @@ def train(args, Model, Loss, device, data, target, optimizer, epoch):
     print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
         epoch, batch_idx * len(data), 1,
         100. * batch_idx / 1, loss.item()))
+    return loss.item()
 
 
 def test(args, Model, Loss, device, data, target):
@@ -77,20 +79,23 @@ def test(args, Model, Loss, device, data, target):
 def GetParam():
 
     parser = argparse.ArgumentParser(description='zelin zang author')
+    parser.add_argument('--method', type=str,
+                        default='tsne_nn', metavar='N',)
     parser.add_argument('--data_name', type=str,
-                        default='digits', metavar='N',)
-    parser.add_argument('--data_trai_n', type=int, default=10000, metavar='N',)
-    parser.add_argument('--data_test_n', type=int, default=10000, metavar='N',)
+                        default='mnist', metavar='N',)
+    parser.add_argument('--data_trai_n', type=int, default=5000, metavar='N',)
+    parser.add_argument('--data_test_n', type=int, default=5000, metavar='N',)
 
     parser.add_argument('--perplexity', type=int, default=30, metavar='N',)
 
     parser.add_argument('--batch_size', type=int, default=10000, metavar='N',)
-    parser.add_argument('--epochs', type=int, default=30000, metavar='N')
-    parser.add_argument('--lr', type=float, default=0.1, metavar='LR',)
+    parser.add_argument('--epochs', type=int, default=80000, metavar='N')
+    # parser.add_argument('--lr', type=float, default=1e-2, metavar='LR',)
+    parser.add_argument('--lr', type=float, default=0.01, metavar='LR',)
     parser.add_argument('--gamma', type=float, default=0.7, metavar='M',)
     parser.add_argument('--no-cuda', action='store_true', default=False,)
     parser.add_argument('--seed', type=int, default=1, metavar='S',)
-    parser.add_argument('--log_interval', type=int, default=100, metavar='N',)
+    parser.add_argument('--log_interval', type=int, default=50, metavar='N',)
     parser.add_argument('--save-model', action='store_true', default=False,)
     args = parser.parse_args()
 
@@ -103,27 +108,39 @@ def main():
 
     args = GetParam()
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    device = torch.device('cpu')
+    # device = torch.device('cpu')
     data_train, data_test, label_train, label_test = dataloader.GetData(
-        args, device=device)
+        args, device=device, pca=64)
+    # input(data_train.shape)
+    # import test
+    # test.test_sklearn(data_train, label_train)
 
-    Model = model_tsne_nn.TSNE_NN(data_train, device=device, args=args).to(device)
-    # Model = model_tsne.TSNE(data_train, device=device, args=args).to(device)
+    if args.method == 'tsne_nn':
+        Model = model_tsne_nn.TSNE_NN(
+            data_train, device=device, args=args).to(device)
+    elif args.method == 'tsne':
+        Model = model_tsne.TSNE(
+            data_train, device=device, args=args).to(device)
     Loss = None  # model.TSNE_LOSS().to(device)
-    optimizer = optim.SGD(Model.parameters(), lr=args.lr)
+    optimizer = optim.Adam(Model.parameters(), lr=args.lr)
 
+    loss_his = []
     for epoch in range(1, args.epochs + 1):
-        train(args, Model, Loss, device, data_train,
-              label_train, optimizer, epoch)
-        # test(args, Model, Loss, device, loader_test)
-        if epoch == 700:
-            Model.r =1
-        if epoch == 1400:
-            Model.r =2
+        loss_item = train(args, Model, Loss, device, data_train,
+                          label_train, optimizer, epoch)
+
+        loss_his.append(loss_item)
+        # if len(loss_his) > 100:
+        #     args.lr = tool.LearningRateScheduler(
+        #         np.array(loss_his), optimizer, args.lr)
+
+        Model.r_pl = max(1-epoch/2000, 0)
+
         if epoch % args.log_interval == 0:
             em = Model.GetEmbedding()
-            plt.scatter(em[:, 0], em[:, 1], c=label_train.detach().cpu())
-            plt.savefig('pic/tsnenn.png')
+            plt.scatter(em[:, 0], em[:, 1], c=label_train.detach().cpu(), s=1)
+            plt.savefig('pic/{}_{}.png'.format(args.data_name,
+                                               args.method), cmp='rainbow')
             plt.close()
 
 
