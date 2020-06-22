@@ -67,7 +67,7 @@ class TSNE_NN(nn.Module):
         dis_squared = pairwise_distances(
             X.detach().cpu().numpy(),  metric='euclidean', squared=True)
         self.dis = torch.tensor(dis_squared.astype(np.float32))
-        pij = manifold._t_sne._joint_probabilities(
+        pij = manifold.t_sne._joint_probabilities(
             dis_squared, perplexity, False)
         return torch.tensor(squareform(pij))
 
@@ -118,7 +118,7 @@ class TSNE_NN(nn.Module):
         Error2[Error2 > 100] = 100
         loss2_2 = torch.norm(Error2) / \
             torch.sum(self.near_input == False)
-        return -10000*loss2_2
+        return -500*loss2_2
 
     def Loss(self, input_1):
 
@@ -135,8 +135,8 @@ class TSNE_NN(nn.Module):
         dis = self.Distance_squared(output_c_1, output_c_1)
         KL_loss = self.KLLoss(dis)
         PL_loss = self.PLLoss(dis)
-        print(KL_loss.item(), PL_loss.item())
-        return self.r_pl*PL_loss + self.r_kl*KL_loss
+        # print(KL_loss.item(), PL_loss.item())
+        return [self.r_pl*PL_loss, self.r_kl*KL_loss]
 
     def forward(self, sample_index_i, sample_index_j):
 

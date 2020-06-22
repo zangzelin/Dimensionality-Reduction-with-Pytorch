@@ -6,10 +6,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.optim as optim
-from matplotlib.patches import Ellipse
-from scipy.spatial.distance import squareform
-from sklearn import datasets, manifold
-from sklearn.metrics.pairwise import pairwise_distances
+# from matplotlib.patches import Ellipse
+# from scipy.spatial.distance import squareform
+# from sklearn import datasets, manifold
+# from sklearn.metrics.pairwise import pairwise_distances
 
 import dataloader
 import model.model_tsne_nn as model_tsne_nn
@@ -31,6 +31,7 @@ def train(args, Model, Loss, device, data, target, optimizer, epoch):
     num_batch = (num_train_sample-0.5)//BATCH_SIZE + 1
     rand_index_i = torch.randperm(num_train_sample)
     rand_index_j = torch.randperm(num_train_sample)
+    train_loss_sum = [0, 0, 0, 0, 0, 0, 0]
 
     for batch_idx in torch.arange(0, num_batch):
 
@@ -45,58 +46,66 @@ def train(args, Model, Loss, device, data, target, optimizer, epoch):
 
         optimizer.zero_grad()
 
-        loss = Model(sample_index_i, sample_index_j)
-        loss.backward()
+        loss_list = Model(sample_index_i, sample_index_j)
+        for i, loss_item in enumerate(loss_list):
+            loss_item.backward(retain_graph=True)
+            train_loss_sum[i] += loss_item.item()
+
+        # train_loss_sum.backward()
         optimizer.step()
 
-    print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-        epoch, batch_idx * len(data), 1,
-        100. * batch_idx / 1, loss.item()))
-    return loss.item()
+    loss_list = [loss_list[i].item() for i in range(len(loss_list))]
+    print('Train Epoch: {} [{}/{} ({:.0f}%)] \t Loss: {}'.format(
+        epoch, batch_idx * len(data), num_train_sample,
+        BATCH_SIZE*100.*batch_idx / num_train_sample,
+        loss_list
+    ))
+    return loss_list
 
 
-def test(args, Model, Loss, device, data, target):
-    Model.eval()
-    test_loss = 0
-    correct = 0
-    with torch.no_grad():
-        for data, target in test_loader:
-            data, target = data.to(device), target.to(device)
-            output = Model(data)
-            # sum up batch loss
-            test_loss += Loss(output, target, reduction='sum').item()
-            # get the index of the max log-probability
-            pred = output.argmax(dim=1, keepdim=True)
-            correct += pred.eq(target.view_as(pred)).sum().item()
+# def test(args, Model, Loss, device, data, target):
+#     Model.eval()
+#     test_loss = 0
+#     correct = 0
+#     with torch.no_grad():
+#         for data, target in test_loader:
+#             data, target = data.to(device), target.to(device)
+#             output = Model(data)
+#             # sum up batch loss
+#             test_loss += Loss(output, target, reduction='sum').item()
+#             # get the index of the max log-probability
+#             pred = output.argmax(dim=1, keepdim=True)
+#             correct += pred.eq(target.view_as(pred)).sum().item()
 
-    test_loss /= len(test_loader.dataset)
+#     test_loss /= len(test_loader.dataset)
 
-    print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
-        test_loss, correct, len(test_loader.dataset),
-        100. * correct / len(test_loader.dataset)))
+#     print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
+#         test_loss, correct, len(test_loader.dataset),
+#         100. * correct / len(test_loader.dataset)))
 
 
 def GetParam():
 
     parser = argparse.ArgumentParser(description='zelin zang author')
-    parser.add_argument('--method', type=str,
-                        default='tsne_nn', metavar='N',)
-    parser.add_argument('--data_name', type=str,
-                        default='mnist', metavar='N',)
-    parser.add_argument('--data_trai_n', type=int, default=5000, metavar='N',)
-    parser.add_argument('--data_test_n', type=int, default=5000, metavar='N',)
+    parser.add_argument('--name', type=str, default='zzl',)
 
-    parser.add_argument('--perplexity', type=int, default=30, metavar='N',)
+    # data set param
+    parser.add_argument('--method', type=str, default='tsne_nn',)
+    parser.add_argument('--data_name', type=str, default='mnist',)
+    parser.add_argument('--data_trai_n', type=int, default=5000,)
+    parser.add_argument('--data_test_n', type=int, default=5000,)
 
-    parser.add_argument('--batch_size', type=int, default=10000, metavar='N',)
-    parser.add_argument('--epochs', type=int, default=80000, metavar='N')
+    # model param
+    parser.add_argument('--perplexity', type=int, default=30,)
+
+    # train param
+    parser.add_argument('--batch_size', type=int, default=10000,)
+    parser.add_argument('--epochs', type=int, default=30000)
     # parser.add_argument('--lr', type=float, default=1e-2, metavar='LR',)
-    parser.add_argument('--lr', type=float, default=0.01, metavar='LR',)
-    parser.add_argument('--gamma', type=float, default=0.7, metavar='M',)
+    parser.add_argument('--lr', type=float, default=0.001, metavar='LR',)
     parser.add_argument('--no-cuda', action='store_true', default=False,)
     parser.add_argument('--seed', type=int, default=1, metavar='S',)
-    parser.add_argument('--log_interval', type=int, default=50, metavar='N',)
-    parser.add_argument('--save-model', action='store_true', default=False,)
+    parser.add_argument('--log_interval', type=int, default=100,)
     args = parser.parse_args()
 
     args.batch_size = min(args.batch_size, args.data_trai_n, args.data_test_n,)
@@ -107,13 +116,15 @@ def GetParam():
 def main():
 
     args = GetParam()
+    path = tool.GetPath(args.name)
+    tool.SaveParam(path, args)
+
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     # device = torch.device('cpu')
     data_train, data_test, label_train, label_test = dataloader.GetData(
         args, device=device, pca=64)
-    # input(data_train.shape)
-    # import test
-    # test.test_sklearn(data_train, label_train)
+    tool.SetSeed(args.seed)
+    gif = tool.GIFPloter()
 
     if args.method == 'tsne_nn':
         Model = model_tsne_nn.TSNE_NN(
@@ -130,18 +141,17 @@ def main():
                           label_train, optimizer, epoch)
 
         loss_his.append(loss_item)
-        # if len(loss_his) > 100:
-        #     args.lr = tool.LearningRateScheduler(
-        #         np.array(loss_his), optimizer, args.lr)
 
-        Model.r_pl = max(1-epoch/2000, 0)
+        Model.r_pl = max(1-epoch/1000, 0)
 
         if epoch % args.log_interval == 0:
-            em = Model.GetEmbedding()
-            plt.scatter(em[:, 0], em[:, 1], c=label_train.detach().cpu(), s=1)
-            plt.savefig('pic/{}_{}.png'.format(args.data_name,
-                                               args.method), cmp='rainbow')
-            plt.close()
+            # em = Model.GetEmbedding()
+            gif.AddNewFig(Model.GetEmbedding(),
+                          label_train.detach().cpu(),
+                          loss_his, path=path,
+                          title_='epoch{}.png'.format(epoch))
+
+    gif.SaveGIF()
 
 
 if __name__ == "__main__":
