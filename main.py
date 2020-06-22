@@ -86,11 +86,11 @@ def GetParam():
 
     parser.add_argument('--batch_size', type=int, default=10000, metavar='N',)
     parser.add_argument('--epochs', type=int, default=30000, metavar='N')
-    parser.add_argument('--lr', type=float, default=10.00, metavar='LR',)
+    parser.add_argument('--lr', type=float, default=0.1, metavar='LR',)
     parser.add_argument('--gamma', type=float, default=0.7, metavar='M',)
     parser.add_argument('--no-cuda', action='store_true', default=False,)
     parser.add_argument('--seed', type=int, default=1, metavar='S',)
-    parser.add_argument('--log_interval', type=int, default=10, metavar='N',)
+    parser.add_argument('--log_interval', type=int, default=100, metavar='N',)
     parser.add_argument('--save-model', action='store_true', default=False,)
     args = parser.parse_args()
 
@@ -110,16 +110,20 @@ def main():
     Model = model_tsne_nn.TSNE_NN(data_train, device=device, args=args).to(device)
     # Model = model_tsne.TSNE(data_train, device=device, args=args).to(device)
     Loss = None  # model.TSNE_LOSS().to(device)
-    optimizer = optim.Adadelta(Model.parameters(), lr=args.lr)
+    optimizer = optim.SGD(Model.parameters(), lr=args.lr)
 
     for epoch in range(1, args.epochs + 1):
         train(args, Model, Loss, device, data_train,
               label_train, optimizer, epoch)
         # test(args, Model, Loss, device, loader_test)
+        if epoch == 700:
+            Model.r =1
+        if epoch == 1400:
+            Model.r =2
         if epoch % args.log_interval == 0:
             em = Model.GetEmbedding()
             plt.scatter(em[:, 0], em[:, 1], c=label_train.detach().cpu())
-            plt.savefig('pic/tsne.png')
+            plt.savefig('pic/tsnenn.png')
             plt.close()
 
 
