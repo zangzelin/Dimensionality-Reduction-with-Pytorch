@@ -11,8 +11,7 @@ import subprocess
 # seeds = [x for x in range(10)]
 # batchsizes = [800]
 lr_list = [2e-2, 1e-2, 5e-3, 1e-3, 5e-4, 1e-4, ]
-perplexity_list = [15, 16, 17, 18, 19, 20, 21, 22,
-                   23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33]
+perplexity_list = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50]
 # MAER_list = [0.0, 0.01, 0.1, 0.3, 0.5, 1, 2, 4, 8]
 
 
@@ -29,7 +28,7 @@ for lr, perplexity in losp_list:
     )
     print(txt)
     # os.system(txt)
-    time.sleep(2)    
+    time.sleep(2)
     if gpunum < 7:
         gpunum += 1
     else:

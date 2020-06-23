@@ -14,8 +14,9 @@ def adjust_learning_rate(optimizer, lr):
 
 def LearningRateScheduler(loss_his, optimizer, lr_base):
 
+    loss_his = np.array(loss_his)
     num_shock = np.sum((loss_his[:-1] - loss_his[1:]) < 0)
-    if num_shock > 0.45 * loss_his.shape[0]:
+    if num_shock > 0.40 * loss_his.shape[0]:
         lr_new = lr_base*0.8
         adjust_learning_rate(optimizer, lr_new)
     # elif num_shock < 0.02 * loss_his.shape[0]:

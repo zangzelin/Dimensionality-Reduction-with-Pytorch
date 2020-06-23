@@ -36,8 +36,8 @@ class TSNE_NN(nn.Module):
                 self.network.append(
                     nn.Sigmoid()
                 )
-        self.r_pl = 1
-        self.r_kl = 1
+        # self.r_pl = 1
+        # self.r_kl = 1
         self.k = args.perplexity
         self.near_input = self.kNNGraphNear(self.dis)
         # input(self.network)
@@ -136,7 +136,10 @@ class TSNE_NN(nn.Module):
         KL_loss = self.KLLoss(dis)
         PL_loss = self.PLLoss(dis)
         # print(KL_loss.item(), PL_loss.item())
-        return [self.r_pl*PL_loss, self.r_kl*KL_loss]
+        return [
+            self.args.rate_plloss*PL_loss,
+            self.args.rate_klloss*KL_loss
+        ]
 
     def forward(self, sample_index_i, sample_index_j):
 
