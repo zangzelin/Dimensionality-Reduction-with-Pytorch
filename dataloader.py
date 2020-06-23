@@ -14,7 +14,7 @@ def GetData(args, device, batch_size=128, pca=None):
         X = X/255
         y = y.astype(np.int32)
         n1 = args.data_trai_n
-        n2 = args.data_trai_n + args.data_test_n
+        n2 = 60000
         data_train, data_test = X[:n1,:], X[n1:n2,:]
         label_train, label_test = y[:n1], y[n1:n2]
 

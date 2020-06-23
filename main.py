@@ -30,11 +30,10 @@ def train(args, Model, Loss, device, data, target, optimizer, epoch):
     num_train_sample = data.shape[0]
     num_batch = (num_train_sample-0.5)//BATCH_SIZE + 1
     rand_index_i = torch.randperm(num_train_sample)
-    rand_index_j = torch.randperm(num_train_sample)
+    # rand_index_j = torch.randperm(num_train_sample)
     train_loss_sum = [0, 0, 0, 0, 0, 0, 0]
 
     for batch_idx in torch.arange(0, num_batch):
-
         start = (batch_idx * BATCH_SIZE).int()
         end = torch.min(
             torch.tensor(
@@ -42,11 +41,11 @@ def train(args, Model, Loss, device, data, target, optimizer, epoch):
             )
         )
         sample_index_i = rand_index_i[start: end.int()]
-        sample_index_j = rand_index_j[start: end.int()]
+        # sample_index_j = rand_index_j[start: end.int()]
 
         optimizer.zero_grad()
 
-        loss_list = Model(sample_index_i, sample_index_j)
+        loss_list = Model(sample_index_i)
         for i, loss_item in enumerate(loss_list):
             loss_item.backward(retain_graph=True)
             train_loss_sum[i] += loss_item.item()
@@ -63,25 +62,19 @@ def train(args, Model, Loss, device, data, target, optimizer, epoch):
     return loss_list
 
 
-# def test(args, Model, Loss, device, data, target):
-#     Model.eval()
-#     test_loss = 0
-#     correct = 0
-#     with torch.no_grad():
-#         for data, target in test_loader:
-#             data, target = data.to(device), target.to(device)
-#             output = Model(data)
-#             # sum up batch loss
-#             test_loss += Loss(output, target, reduction='sum').item()
-#             # get the index of the max log-probability
-#             pred = output.argmax(dim=1, keepdim=True)
-#             correct += pred.eq(target.view_as(pred)).sum().item()
+def test(args, Model, Loss, device, data, target, optimizer, epoch):
 
-#     test_loss /= len(test_loader.dataset)
+    BATCH_SIZE = args.batch_size
 
-#     print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
-#         test_loss, correct, len(test_loader.dataset),
-#         100. * correct / len(test_loader.dataset)))
+    # batch_idx = 0
+    # Model.train()
+    data, target = data.to(device), target.to(device)
+
+    num_train_sample = data.shape[0]
+
+    em = Model.Test(data)
+
+    return em
 
 
 def GetParam():
@@ -92,8 +85,8 @@ def GetParam():
     # data set param
     parser.add_argument('--method', type=str, default='tsne_nn',)
     parser.add_argument('--data_name', type=str, default='mnist',)
-    parser.add_argument('--data_trai_n', type=int, default=6000,)
-    parser.add_argument('--data_test_n', type=int, default=6000,)
+    parser.add_argument('--data_trai_n', type=int, default=20000,)
+    parser.add_argument('--data_test_n', type=int, default=20000,)
 
     # model param
     parser.add_argument('--perplexity', type=int, default=30,)
@@ -101,7 +94,7 @@ def GetParam():
     parser.add_argument('--rate_klloss', type=float, default=1,)
 
     # train param
-    parser.add_argument('--batch_size', type=int, default=10000,)
+    parser.add_argument('--batch_size', type=int, default=20000,)
     parser.add_argument('--epochs', type=int, default=10000)
     # parser.add_argument('--lr', type=float, default=1e-2, metavar='LR',)
     parser.add_argument('--lr', type=float, default=0.001, metavar='LR',)
@@ -126,7 +119,8 @@ def main():
     data_train, data_test, label_train, label_test = dataloader.GetData(
         args, device=device, pca=64)
     tool.SetSeed(args.seed)
-    gif = tool.GIFPloter()
+    gif1 = tool.GIFPloter()
+    gif2 = tool.GIFPloter()
 
     if args.method == 'tsne_nn':
         Model = model_tsne_nn.TSNE_NN(
@@ -149,11 +143,18 @@ def main():
             if epoch > 2000:
                 args.lr = tool.LearningRateScheduler(
                     loss_his[-1000:], optimizer, args.lr)
-            gif.AddNewFig(Model.GetEmbedding(),
-                          label_train.detach().cpu(),
-                          loss_his, path=path,
-                          title_='epoch{}.png'.format(epoch))
 
+            em = test(args, Model, Loss, device, data_test,
+                      label_test, optimizer, epoch)
+
+            gif1.AddNewFig(em,
+                           label_test.detach().cpu(),
+                           loss_his, path=path,
+                           title_='test_epoch{}.png'.format(epoch))
+            gif2.AddNewFig(Model.GetEmbedding(),
+                           label_train.detach().cpu(),
+                           loss_his, path=path,
+                           title_='epoch{}.png'.format(epoch))
     gif.SaveGIF()
 
 

@@ -17,12 +17,13 @@ class TSNE_NN(nn.Module):
         self.n_dim = n_dim
         super(TSNE_NN, self).__init__()
         self.data = torch.tensor(data)
+        self.args = args
         self.perplexity = args.perplexity
 
         self.pij = self.CalPij(self.data).float().to(self.device)
         # input(self.pij)
         # self.pij = self.x2p_torch(self.data).to(self.device)
-        self.pij[self.pij < 1e-16] = 1e-16
+        self.pij[self.pij < 1e-36] = 1e-36
         self.r = 0
         # self.output = torch.nn.Parameter(torch.randn(self.n_points, n_dim))
         self.NetworkStructure = [64, 5000, 2]
@@ -65,7 +66,8 @@ class TSNE_NN(nn.Module):
         perplexity = self.perplexity
 
         dis_squared = pairwise_distances(
-            X.detach().cpu().numpy(),  metric='euclidean', squared=True)
+            X.detach().cpu().numpy(),  metric='euclidean',
+            squared=True, n_jobs=-1)
         self.dis = torch.tensor(dis_squared.astype(np.float32))
         pij = manifold.t_sne._joint_probabilities(
             dis_squared, perplexity, False)
@@ -84,7 +86,7 @@ class TSNE_NN(nn.Module):
 
         return out.abs().mean()
 
-    def KLLoss(self, dis):
+    def KLLoss(self, dis, sample_index_i):
         qij_top = 1/(1+dis)
         sum_m = (
             qij_top.sum() -
@@ -92,7 +94,7 @@ class TSNE_NN(nn.Module):
         )
         qij = qij_top / sum_m
         qij = torch.max(qij, torch.tensor([1e-36], device=self.device))
-        pij = self.pij
+        pij = self.pij[sample_index_i][:, sample_index_i]
 
         loss_kld = pij * (torch.log(pij) - torch.log(qij))
 
@@ -112,15 +114,42 @@ class TSNE_NN(nn.Module):
 
         return kNN_mask
 
-    def PLLoss(self, dis):
-        D2_2 = (dis)[self.near_input == False]
+    def PLLoss(self, dis, sample_index_i):
+        D2_2 = (dis)[self.near_input[sample_index_i]
+                     [:, sample_index_i] == False]
         Error2 = D2_2
-        Error2[Error2 > 100] = 100
+        Error2[Error2 > 10] = 10
         loss2_2 = torch.norm(Error2) / \
-            torch.sum(self.near_input == False)
+            torch.sum(self.near_input[sample_index_i]
+                      [:, sample_index_i] == False)
         return -500*loss2_2
 
-    def Loss(self, input_1):
+    def Test(self, testdata):
+
+        input_c_1 = testdata.float()
+        for i, layer in enumerate(self.network):
+            output_c_1 = layer(input_c_1)
+            input_c_1 = output_c_1
+            try:
+                weigh_list.append(layer.weight)
+            except:
+                pass
+        return output_c_1.detach().cpu().numpy()
+
+    def Loss(self, output_c_1, sample_index_i):
+
+        dis = self.Distance_squared(output_c_1, output_c_1)
+        KL_loss = self.KLLoss(dis, sample_index_i)
+        PL_loss = self.PLLoss(dis, sample_index_i)
+        # print(KL_loss.item(), PL_loss.item())
+        return [
+            self.args.rate_plloss*PL_loss,
+            self.args.rate_klloss*KL_loss
+        ]
+
+    def forward(self, sample_index_i):
+
+        input_1 = self.data.float()[sample_index_i]
 
         weigh_list = []
         input_c_1 = input_1
@@ -132,20 +161,7 @@ class TSNE_NN(nn.Module):
             except:
                 pass
 
-        dis = self.Distance_squared(output_c_1, output_c_1)
-        KL_loss = self.KLLoss(dis)
-        PL_loss = self.PLLoss(dis)
-        # print(KL_loss.item(), PL_loss.item())
-        return [
-            self.args.rate_plloss*PL_loss,
-            self.args.rate_klloss*KL_loss
-        ]
-
-    def forward(self, sample_index_i, sample_index_j):
-
-        input_1 = self.data.float()
-
-        return self.Loss(input_1)  # + loss_pl*self.r
+        return self.Loss(output_c_1, sample_index_i)  # + loss_pl*self.r
 
     def __call__(self, *args):
         return self.forward(*args)
