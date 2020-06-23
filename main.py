@@ -85,8 +85,8 @@ def GetParam():
     # data set param
     parser.add_argument('--method', type=str, default='tsne_nn',)
     parser.add_argument('--data_name', type=str, default='mnist',)
-    parser.add_argument('--data_trai_n', type=int, default=20000,)
-    parser.add_argument('--data_test_n', type=int, default=20000,)
+    parser.add_argument('--data_trai_n', type=int, default=10000,)
+    parser.add_argument('--data_test_n', type=int, default=10000,)
 
     # model param
     parser.add_argument('--perplexity', type=int, default=30,)
@@ -94,10 +94,10 @@ def GetParam():
     parser.add_argument('--rate_klloss', type=float, default=1,)
 
     # train param
-    parser.add_argument('--batch_size', type=int, default=20000,)
+    parser.add_argument('--batch_size', type=int, default=10000,)
     parser.add_argument('--epochs', type=int, default=10000)
     # parser.add_argument('--lr', type=float, default=1e-2, metavar='LR',)
-    parser.add_argument('--lr', type=float, default=0.001, metavar='LR',)
+    parser.add_argument('--lr', type=float, default=0.01, metavar='LR',)
     parser.add_argument('--no-cuda', action='store_true', default=False,)
     parser.add_argument('--seed', type=int, default=1, metavar='S',)
     parser.add_argument('--log_interval', type=int, default=100,)

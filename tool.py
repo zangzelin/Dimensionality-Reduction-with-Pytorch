@@ -39,7 +39,7 @@ class GIFPloter():
                        fig_position0=1,
                        fig_position1=1,
                        fig_position2=1,
-                       s=10):
+                       s=30):
         from sklearn.decomposition import PCA
 
         color_list = []

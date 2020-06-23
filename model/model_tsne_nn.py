@@ -64,13 +64,15 @@ class TSNE_NN(nn.Module):
 
     def CalPij(self, X, perplexity=30.0):
         perplexity = self.perplexity
-
+        print('start cal distance')
         dis_squared = pairwise_distances(
             X.detach().cpu().numpy(),  metric='euclidean',
             squared=True, n_jobs=-1)
         self.dis = torch.tensor(dis_squared.astype(np.float32))
+        print('finish cal distance')
         pij = manifold.t_sne._joint_probabilities(
             dis_squared, perplexity, False)
+        print('finish cal probabilities')
         return torch.tensor(squareform(pij))
 
     def CossimiSlow(self, data):
@@ -122,7 +124,7 @@ class TSNE_NN(nn.Module):
         loss2_2 = torch.norm(Error2) / \
             torch.sum(self.near_input[sample_index_i]
                       [:, sample_index_i] == False)
-        return -500*loss2_2
+        return -5000*loss2_2
 
     def Test(self, testdata):
 
