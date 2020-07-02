@@ -10,8 +10,8 @@ import subprocess
 # cmd = []
 # seeds = [x for x in range(10)]
 # batchsizes = [800]
-lr_list = [2e-2, 1e-2, 5e-3, 1e-3, 5e-4, 1e-4, ]
-perplexity_list = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50]
+lr_list = [1e-2, ]
+perplexity_list = [3, 4, 5, 6, 7, 8, 9, 10]
 # MAER_list = [0.0, 0.01, 0.1, 0.3, 0.5, 1, 2, 4, 8]
 
 
@@ -23,7 +23,7 @@ c_pn = pool_number-1
 gpunum = 0
 for lr, perplexity in losp_list:
     txt = "CUDA_VISIBLE_DEVICES={} ".format(gpunum) +\
-        "python -u ./main.py --lr {} --perplexity {}".format(
+        "python -u ./main.py --lr {} --numberClass {}".format(
             lr, perplexity
     )
     print(txt)

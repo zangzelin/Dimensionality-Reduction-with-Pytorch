@@ -26,7 +26,7 @@ class TSNE_NN(nn.Module):
         self.pij[self.pij < 1e-36] = 1e-36
         self.r = 0
         # self.output = torch.nn.Parameter(torch.randn(self.n_points, n_dim))
-        self.NetworkStructure = [64, 5000, 2]
+        self.NetworkStructure = args.NetworkStructure
         self.network = nn.ModuleList()
         for i in range(len(self.NetworkStructure)-1):
             self.network.append(
@@ -163,7 +163,7 @@ class TSNE_NN(nn.Module):
             except:
                 pass
 
-        return self.Loss(output_c_1, sample_index_i)  # + loss_pl*self.r
+        return output_c_1
 
     def __call__(self, *args):
         return self.forward(*args)
