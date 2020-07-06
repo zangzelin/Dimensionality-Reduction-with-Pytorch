@@ -7,11 +7,9 @@ from itertools import product
 import subprocess
 # parameter analysis for SAGloss
 
-# cmd = []
-# seeds = [x for x in range(10)]
-# batchsizes = [800]
+
 lr_list = [1e-2, ]
-perplexity_list = [3, 4, 5, 6, 7, 8, 9, 10]
+perplexity_list = [2, 3, 4, 5, 6, 7, 8, 9, 10]
 # MAER_list = [0.0, 0.01, 0.1, 0.3, 0.5, 1, 2, 4, 8]
 
 

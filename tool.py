@@ -27,6 +27,20 @@ def LearningRateScheduler(loss_his, optimizer, lr_base):
     return lr_new
 
 
+def SaveData(input, latent, label, path='', name=''):
+
+    if type(input) == torch.Tensor:
+        input = input.detach().cpu().numpy()
+    if type(latent) == torch.Tensor:
+        latent = latent.detach().cpu().numpy()
+    if type(label) == torch.Tensor:
+        label = label.detach().cpu().numpy()
+
+    np.savetxt(path+name+'input.txt', input)
+    np.savetxt(path+name+'latent.txt', latent)
+    np.savetxt(path+name+'label.txt', label)
+
+
 class GIFPloter():
     def __init__(self,):
         self.path_list = []
@@ -78,12 +92,15 @@ class GIFPloter():
             legend1 = ax.legend(*s.legend_elements(num=list_i_n),
                                 loc="upper left", title="Ranking")
             ax.add_artist(legend1)
-        
+
         plt.title(title)
 
-    def AddNewFig(self, latent, label, link=None, graph=None, his_loss=None, title_='', path='./'):
+    def AddNewFig(self, latent, label,
+                  link=None, graph=None,
+                  his_loss=None, title_='',
+                  path='./'):
 
-        fig=plt.figure(figsize=(16, 8))
+        fig = plt.figure(figsize=(16, 8))
         # fig.add_subplot(1, 2, 1)
 
         self.PlotOtherLayer(
@@ -101,7 +118,7 @@ class GIFPloter():
         plt.title('loss history')
 
         plt.tight_layout()
-        path_c=path+title_
+        path_c = path+title_
         self.path_list.append(path_c)
 
         # print(graph)
@@ -116,9 +133,9 @@ class GIFPloter():
         for i in range(graph.shape[0]):
             for j in range(graph.shape[0]):
                 if graph[i, j] == True:
-                    p1=latent[i]
-                    p2=latent[j]
-                    lik=link[i, j]
+                    p1 = latent[i]
+                    p2 = latent[j]
+                    lik = link[i, j]
                     plt.plot([p1[0], p2[0]], [p1[1], p2[1]], 'gray', lw=1/lik)
                     if lik > link.min()*1.01:
                         plt.text((p1[0]+p2[0])/2, (p1[1] + p2[1]) /
@@ -128,7 +145,7 @@ class GIFPloter():
 
     def SaveGIF(self):
 
-        gif_images=[]
+        gif_images = []
         for i, path_ in enumerate(self.path_list):
             # print(path_)
             gif_images.append(imageio.imread(path_))
@@ -144,7 +161,7 @@ def SetSeed(seed):
     Arguments:
         seed {int} -- seed number, will set to torch, random and numpy
     """
-    SEED=seed
+    SEED = seed
     torch.manual_seed(SEED)
     torch.cuda.manual_seed(SEED)
     rd.seed(SEED)
@@ -153,9 +170,9 @@ def SetSeed(seed):
 
 def GetPath(name=''):
 
-    rest=time.strftime("%Y%m%d%H%M%S_", time.localtime()) + \
+    rest = time.strftime("%Y%m%d%H%M%S_", time.localtime()) + \
         os.popen('git rev-parse HEAD').read()
-    path='log/' + rest[:20] + name
+    path = 'log/' + rest[:20] + name
     if not os.path.exists(path):
         os.makedirs(path)
 

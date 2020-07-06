@@ -1,5 +1,6 @@
 
 import argparse
+import plotfig_plotpy
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -14,7 +15,7 @@ import torch.optim as optim
 import dataloader
 import model.model_tsne_nn as model_tsne_nn
 import model.model_tsne as model_tsne
-import model.model_base as model_base
+import model.model_MLDLZL as MLDLZL
 import model.model_ko as model_ko
 import tool
 
@@ -91,23 +92,20 @@ def GetParam():
     parser.add_argument('--name', type=str, default='tuiyuan',)
 
     # data set param
-    parser.add_argument('--method', type=str, default='base',)
+    parser.add_argument('--method', type=str, default='MLDLZL',)
     parser.add_argument('--data_name', type=str, default='mnist',)
-    # parser.add_argument('--data_trai_n', type=int, default=8000,)
-    # parser.add_argument('--data_test_n', type=int, default=8000,)
-    parser.add_argument('--numberClass', type=int, default=2,)
-    
+    parser.add_argument('--numberClass', type=int, default=4,)
 
     # model param
     parser.add_argument('--perplexity', type=int, default=4,)
     parser.add_argument('--rate_plloss', type=float, default=1,)
     parser.add_argument('--rate_klloss', type=float, default=1,)
     parser.add_argument('--NetworkStructure', type=list,
-                        default=[64, 5000, 2],)
+                        default=[784, 5000, 3],)
 
     # train param
     parser.add_argument('--batch_size', type=int, default=8000,)
-    parser.add_argument('--epochs', type=int, default=5000)
+    parser.add_argument('--epochs', type=int, default=2000)
     # parser.add_argument('--lr', type=float, default=1e-2, metavar='LR',)
     parser.add_argument('--lr', type=float, default=0.01, metavar='LR',)
     parser.add_argument('--no-cuda', action='store_true', default=False,)
@@ -122,7 +120,7 @@ def GetParam():
     return args
 
 
-def main(a, b):
+def main():
 
     args = GetParam()
     path = tool.GetPath(args.name)
@@ -131,10 +129,12 @@ def main(a, b):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     # device = torch.device('cpu')
     data_train, data_test, label_train, label_test = dataloader.GetData(
-        args, device=device, pca=64, )
+        args, device=device, )
     tool.SetSeed(args.seed)
-    gif1 = tool.GIFPloter()
-    gif2 = tool.GIFPloter()
+    # gif1 = tool.GIFPloter()
+    # gif2 = tool.GIFPloter()
+    # import test
+    # test.test_umap(data_train, label_train)
 
     if args.method == 'tsne_nn':
         Model = model_tsne_nn.TSNE_NN(
@@ -142,8 +142,8 @@ def main(a, b):
     elif args.method == 'tsne':
         Model = model_tsne.TSNE(
             data_train, device=device, args=args).to(device)
-    elif args.method == 'base':
-        Model = model_base.MAE_MLP(
+    elif args.method == 'MLDLZL':
+        Model = MLDLZL.MLDLZL_MLP(
             data_train, device=device, args=args,).to(device)
     Loss = None  # model.TSNE_LOSS().to(device)
     optimizer = optim.Adam(Model.parameters(), lr=args.lr)
@@ -175,19 +175,24 @@ def main(a, b):
             #                graph=Model.GetInput(),
             #                link=Model.Getlink(),
             #                title_='train_epoch{}_{}{}.png'.format(epoch, a, b))
-            gif1.AddNewFig(em_train,
-                           label_train.detach().cpu(),
-                           his_loss=loss_his, path=path,
-                           graph=None,
-                           link=Model.Getlink(),
-                           title_='train_epoch{}_{}{}_notxt.png'.format(epoch, a, b))
+            # gif1.AddNewFig(em_train,
+            #                label_train.detach().cpu(),
+            #                his_loss=loss_his, path=path,
+            #                graph=None,
+            #                link=Model.Getlink(),
+            #                title_='train_epoch{}_{}{}_notxt.png'.format(epoch, a, b))
+
+            tool.SaveData(data_train, em_train, label_train,
+                          path=path, name='train_epoch{}'.format(epoch))
             #    title_='train_epoch{}.png'.format(epoch))
-    gif1.SaveGIF()
-    gif2.SaveGIF()
+    # gif1.SaveGIF()
+    # gif2.SaveGIF()
+    
+    return path
 
 
 if __name__ == "__main__":
-    # for i in range(10):
-    #     for j in range(10):
-    #         if i != j:
-    main(1, 2)
+
+    path = main()
+    print(path)
+    plotfig_plotpy.PlotWithPlotly(path=path)
